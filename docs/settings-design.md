@@ -399,6 +399,44 @@ danger:     #d92d20
 
 cmd 同步显示 settings URL，不启动 Codex Desktop。
 
+## 后续计划：接入 Codex app-server
+
+Codex CLI 现在提供实验性的 `app-server` 能力。它更像 Codex 的本地内核协议层，适合给 Desktop、IDE extension 或其他 rich client 提供线程、配置、模型列表、审批、sandbox、插件和 skills 等能力。
+
+当前判断：
+
+- `app-server` 可以帮助我们减少对 Codex Desktop 内部 JS 的补丁。
+- `app-server` 不能直接替代 Codex DataProxy 的中转站代理，因为它本身不是 OpenAI 兼容 API 转发器。
+- 多中转站、多 Key、按模型选择 Key、`/v1/*` 代理、协议兼容和真实 Key 注入仍应保留在 Codex DataProxy 本地代理中。
+- `app-server` 目前标记为 experimental，不能作为唯一依赖，需要保留现有补丁或配置写入方案作为 fallback。
+
+可用能力初步整理：
+
+- `model/list`：读取 Codex 当前可用模型列表。
+- `config/read`：读取有效配置。
+- `config/value/write`、`config/batchWrite`：写入配置，其中 batch write 支持写入后热加载用户配置。
+- `thread/settings/update`：更新线程后续 turn 的模型、reasoning effort、审批策略、sandbox 等。
+- `windowsSandbox/readiness`、`windowsSandbox/setupStart`：读取和触发 Windows sandbox 相关状态。
+- `plugin/list`、`plugin/install`、`marketplace/*`、`skills/list`：读取或管理插件、市场和 skills。
+
+建议采用混合方案，而不是一次性改成纯 `app-server` 客户端：
+
+1. 保留当前本地 HTTP 代理，继续负责 `/v1/*` 转发和多 Key 路由。
+2. 新增 `app-server` 适配层，优先用于配置读写、模型列表读取和热加载。
+3. 先验证 `config/batchWrite` 的 `reloadUserConfig` 是否能让 Codex Desktop 在不重启的情况下刷新模型和 provider 配置。
+4. 如果 `model/list` 能自然返回 DataProxy 合并后的模型列表，再逐步移除 `patch-model-list.ps1` 对 Desktop 前端的拦截。
+5. i18n、设置搜索框、插件市场鉴权等问题单独验证，不假设 `app-server` 可以全部解决。
+6. 如果未来希望彻底摆脱 `app.asar` 补丁，可以考虑基于 `app-server` 自研轻量 Desktop shell，但这会变成新的客户端工程，成本明显高于当前启动器方案。
+
+验证任务：
+
+- 使用当前 Codex CLI 版本生成 `app-server` JSON schema，记录可用方法。
+- 在独立 `CODEX_HOME` 下启动 `codex app-server --listen stdio://` 或本地 socket。
+- 通过 JSON-RPC 调用 `config/read`、`config/batchWrite`、`model/list`。
+- 写入 `model_provider = "dataproxy-local"` 和本地代理 `base_url` 后，确认 `model/list` 是否包含 DataProxy 模型。
+- 在 Codex Desktop 已打开时写入配置，确认模型选择器是否能热更新。
+- 如果 Desktop 仍缓存模型列表，则继续保留现有 `dataproxy-models.json` 补丁。
+
 ## 实现拆分
 
 ### 第一阶段：配置目录
