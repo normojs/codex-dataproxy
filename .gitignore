@@ -1,0 +1,32 @@
+# Secrets and local runtime config
+.env
+codex-dataproxy.yml
+config/
+data/
+虚拟机密码.txt
+
+# Bundled Codex Desktop and package output
+app/
+dist/
+*.zip
+*.exe
+
+# Generated Windows resources
+rsrc_windows_amd64.syso
+
+# Local inspection artifacts from extracted Codex bundles
+agent-settings-*.js
+app-main-*.js
+model-queries-*.js
+plugin-detail-queries-*.js
+plugin-install-store-*.js
+plugins-page-*.js
+statsig-*.js
+use-plugins-*.js
+last-asar-inspect-path.txt
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.sample

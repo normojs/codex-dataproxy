@@ -1,0 +1,833 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Codex DataProxy Settings Mockup</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f7f7f4;
+      --surface: #ffffff;
+      --surface-2: #f1f3f5;
+      --surface-3: #e9edf2;
+      --line: #d9dde3;
+      --line-soft: #e7e9ee;
+      --text: #111318;
+      --muted: #667085;
+      --muted-2: #98a2b3;
+      --accent: #10a37f;
+      --accent-soft: #e7f7f2;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --warning: #b7791f;
+      --warning-soft: #fff7df;
+      --danger: #d92d20;
+      --danger-soft: #fff1f0;
+      --shadow: 0 20px 50px rgba(17, 19, 24, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(90deg, rgba(17, 19, 24, 0.035) 1px, transparent 1px) 0 0 / 48px 48px,
+        linear-gradient(rgba(17, 19, 24, 0.026) 1px, transparent 1px) 0 0 / 48px 48px,
+        var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-rows: 62px 1fr 38px;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 247, 244, 0.92);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border: 1px solid rgba(16, 163, 127, 0.25);
+      border-radius: 8px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 750;
+    }
+
+    .title {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .title strong {
+      font-size: 15px;
+      font-weight: 680;
+      white-space: nowrap;
+    }
+
+    .title span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .top-actions,
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 30px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.78);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .badge.green {
+      border-color: rgba(16, 163, 127, 0.22);
+      background: var(--accent-soft);
+      color: #08765c;
+    }
+
+    .badge.blue {
+      border-color: rgba(37, 99, 235, 0.18);
+      background: var(--blue-soft);
+      color: #1d4ed8;
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted-2);
+      flex: 0 0 auto;
+    }
+
+    .dot.good {
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.12);
+    }
+
+    .dot.warn {
+      background: var(--warning);
+      box-shadow: 0 0 0 4px rgba(183, 121, 31, 0.12);
+    }
+
+    .main {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr);
+      min-height: 0;
+    }
+
+    .sidebar {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-height: 0;
+      border-right: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.56);
+      backdrop-filter: blur(14px);
+    }
+
+    .sidebar-head {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .provider-list {
+      display: grid;
+      align-content: start;
+      gap: 8px;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .provider {
+      display: grid;
+      grid-template-columns: 18px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: start;
+      width: 100%;
+      padding: 13px 11px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.72);
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .provider:hover {
+      border-color: #cbd2dc;
+      background: #ffffff;
+    }
+
+    .provider.active {
+      border-color: rgba(16, 163, 127, 0.38);
+      background: #f4fffb;
+      box-shadow: 0 10px 28px rgba(16, 163, 127, 0.08);
+    }
+
+    .provider-name {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .provider-name strong {
+      overflow: hidden;
+      font-size: 13px;
+      font-weight: 680;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .provider-name span {
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mini-actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .icon-btn {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .icon-btn:hover {
+      color: var(--text);
+      border-color: #bdc5d1;
+      background: var(--surface-2);
+    }
+
+    .content {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .content-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--line-soft);
+      background: rgba(255, 255, 255, 0.48);
+    }
+
+    .content-title {
+      display: grid;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .content-title h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 680;
+    }
+
+    .content-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 18px;
+      min-height: 0;
+      padding: 20px 24px;
+      overflow: auto;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+      min-width: 0;
+      align-content: start;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: var(--shadow);
+      min-width: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .panel-header strong {
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .form {
+      display: grid;
+      gap: 14px;
+      padding: 16px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      min-width: 0;
+    }
+
+    .field label,
+    .field > span:first-child {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input,
+    textarea {
+      width: 100%;
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--text);
+      outline: none;
+    }
+
+    input {
+      height: 36px;
+      padding: 0 10px;
+    }
+
+    textarea {
+      min-height: 74px;
+      resize: vertical;
+      padding: 9px 10px;
+    }
+
+    input:focus,
+    textarea:focus {
+      border-color: rgba(16, 163, 127, 0.72);
+      box-shadow: 0 0 0 4px rgba(16, 163, 127, 0.12);
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #ffffff;
+      color: var(--text);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      border-color: #b9c2cf;
+      background: var(--surface-2);
+    }
+
+    .btn.primary {
+      border-color: rgba(16, 163, 127, 0.55);
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.blue {
+      border-color: rgba(37, 99, 235, 0.45);
+      background: var(--blue);
+      color: white;
+    }
+
+    .btn.danger {
+      color: var(--danger);
+      background: var(--danger-soft);
+      border-color: #ffd1cc;
+    }
+
+    .route-table {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+    }
+
+    .route {
+      display: grid;
+      grid-template-columns: 150px minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 8px;
+      background: #ffffff;
+    }
+
+    .route strong {
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .route small {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .model-line {
+      overflow: hidden;
+      color: var(--muted);
+      font-family: Consolas, "SFMono-Regular", monospace;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .side-panel {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+      min-width: 0;
+    }
+
+    .metric-list {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .metric {
+      display: grid;
+      gap: 4px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line-soft);
+    }
+
+    .metric:last-child {
+      padding-bottom: 0;
+      border-bottom: 0;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric strong {
+      overflow: hidden;
+      font-size: 13px;
+      font-weight: 650;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .notice {
+      margin: 14px;
+      padding: 12px;
+      border: 1px solid #f2d79b;
+      border-radius: 8px;
+      background: var(--warning-soft);
+      color: #7c4b00;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .route-table .notice {
+      margin: 0;
+    }
+
+    .statusbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 0 16px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.82);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .statusbar span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    @media (max-width: 1050px) {
+      .main {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        max-height: 300px;
+      }
+
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 700px) {
+      .app {
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .topbar,
+      .content-head {
+        align-items: flex-start;
+        flex-direction: column;
+        height: auto;
+        padding: 14px;
+      }
+
+      .grid-2,
+      .route {
+        grid-template-columns: 1fr;
+      }
+
+      .workspace {
+        padding: 14px;
+      }
+
+      .statusbar {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 10px 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="mark">DP</div>
+        <div class="title">
+          <strong>Codex DataProxy</strong>
+          <span>本地代理、模型路由与中转站设置</span>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="badge green"><span class="dot good"></span>Local only</span>
+        <span class="badge blue">当前：DataProxy / GPT 主 Key</span>
+        <button class="btn">打开配置目录</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <aside class="sidebar">
+        <div class="sidebar-head">
+          <div class="section-title">
+            <span>中转站</span>
+            <span>3 个 endpoint</span>
+          </div>
+          <button class="btn primary">新增中转站</button>
+        </div>
+
+        <div class="provider-list">
+          <button class="provider active">
+            <span class="dot good"></span>
+            <span class="provider-name">
+              <strong>DataProxy</strong>
+              <span>2 keys · 38 models · gpt-5.5</span>
+            </span>
+            <span class="mini-actions">
+              <span class="icon-btn" title="上移">↑</span>
+              <span class="icon-btn" title="下移">↓</span>
+            </span>
+          </button>
+
+          <button class="provider">
+            <span class="dot warn"></span>
+            <span class="provider-name">
+              <strong>备用中转站</strong>
+              <span>1 key · 未配置 API Key</span>
+            </span>
+            <span class="mini-actions">
+              <span class="icon-btn" title="上移">↑</span>
+              <span class="icon-btn" title="下移">↓</span>
+            </span>
+          </button>
+
+          <button class="provider">
+            <span class="dot"></span>
+            <span class="provider-name">
+              <strong>公司内部网关</strong>
+              <span>3 keys · 未测试</span>
+            </span>
+            <span class="mini-actions">
+              <span class="icon-btn" title="上移">↑</span>
+              <span class="icon-btn" title="下移">↓</span>
+            </span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="content">
+        <div class="content-head">
+          <div class="content-title">
+            <h1>DataProxy</h1>
+            <p>同一个 Base URL 可以配置多个 Key；models 可为空，为空时自动拉取 /v1/models，并按模型选择可用 Key。</p>
+          </div>
+          <div class="actions">
+            <button class="btn">测试全部 Key</button>
+            <button class="btn">刷新模型</button>
+            <button class="btn">设为当前</button>
+            <button class="btn primary">保存</button>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <div class="stack">
+            <section class="panel">
+              <div class="panel-header">
+                <strong>Endpoint</strong>
+                <span class="badge green"><span class="dot good"></span>Active</span>
+              </div>
+
+              <form class="form">
+                <div class="grid-2">
+                  <label class="field">
+                    <span>名称</span>
+                    <input value="DataProxy" />
+                  </label>
+
+                  <label class="field">
+                    <span>ID</span>
+                    <input value="dataproxy" />
+                  </label>
+                </div>
+
+                <label class="field">
+                  <span>Base URL</span>
+                  <input value="https://dp.app.mbu.ltd/v1" />
+                </label>
+
+                <div class="grid-2">
+                  <label class="field">
+                    <span>默认模型</span>
+                    <input value="gpt-5.5" />
+                  </label>
+
+                  <label class="field">
+                    <span>排序</span>
+                    <input value="10" />
+                  </label>
+                </div>
+              </form>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <strong>Key 与模型路由</strong>
+                <button class="btn blue">新增 Key</button>
+              </div>
+
+              <div class="route-table">
+                <div class="notice">
+                  每个 Key 的 models 是手动覆盖项，可以留空。留空时使用该 Key 的 /v1/models 自动结果；合并时后面的 Key 覆盖前面的 Key。
+                </div>
+
+                <div class="route">
+                  <div>
+                    <strong>GPT 主 Key</strong>
+                    <small>默认 Key · 手动 models · 24 models</small>
+                  </div>
+                  <div class="model-line">gpt-5.5, gpt-5.1, gpt-4.1, o-series/*</div>
+                  <div class="actions">
+                    <button class="btn">测试</button>
+                    <button class="btn">编辑</button>
+                  </div>
+                </div>
+
+                <div class="route">
+                  <div>
+                    <strong>DeepSeek Key</strong>
+                    <small>自动 /v1/models · 14 models</small>
+                  </div>
+                  <div class="model-line">models 为空，使用该 Key 自动获取的模型列表</div>
+                  <div class="actions">
+                    <button class="btn">测试</button>
+                    <button class="btn">编辑</button>
+                  </div>
+                </div>
+
+                <div class="route">
+                  <div>
+                    <strong>新增 Key</strong>
+                    <small>未保存</small>
+                  </div>
+                  <span class="control-row">
+                    <input type="password" value="sk-xxxxxxxxxxxxxxxxxxxxxxxx" />
+                    <button class="btn">显示</button>
+                  </span>
+                  <div class="actions">
+                    <button class="btn primary">保存 Key</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside class="side-panel">
+            <section class="panel">
+              <div class="panel-header">
+                <strong>路由状态</strong>
+              </div>
+              <div class="metric-list">
+                <div class="metric">
+                  <span>本地代理</span>
+                  <strong>127.0.0.1:16666</strong>
+                </div>
+                <div class="metric">
+                  <span>当前 endpoint</span>
+                  <strong>DataProxy</strong>
+                </div>
+                <div class="metric">
+                  <span>默认 Key</span>
+                  <strong>GPT 主 Key</strong>
+                </div>
+                <div class="metric">
+                  <span>模型路由</span>
+                  <strong>38 个模型，2 个 Key</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <strong>连接测试</strong>
+                <span class="badge green"><span class="dot good"></span>成功</span>
+              </div>
+              <div class="metric-list">
+                <div class="metric">
+                  <span>GPT 主 Key</span>
+                  <strong>24 models · 286ms</strong>
+                </div>
+                <div class="metric">
+                  <span>DeepSeek Key</span>
+                  <strong>14 models · 341ms</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <strong>提示</strong>
+              </div>
+              <div class="notice">
+                如果同一个模型被多个 Key 声明，代理会以后面的 Key 覆盖前面的 Key。可以通过排序调整优先级。
+              </div>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="statusbar">
+      <span>Settings: http://127.0.0.1:16666/settings</span>
+      <span>/v1/responses -> DataProxy -> key matched by model</span>
+    </footer>
+  </div>
+</body>
+</html>

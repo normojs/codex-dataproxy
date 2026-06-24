@@ -1,0 +1,12 @@
+{
+  "id": "codex-dataproxy",
+  "guid": "{E4DD7C64-D85E-4B79-B847-BCF184C47C1D}",
+  "name": "Codex DataProxy",
+  "version": "0.1.0",
+  "release": "1",
+  "date": "2026/06/22",
+  "publisher": "Local",
+  "url": "https://developers.openai.com/codex/",
+  "about": "Codex DataProxy \u7531 dp.app.mbu.ltd \u5236\u4f5c\u5e76\u53d1\u5e03\uff0c\u5185\u7f6e DataProxy AI \u4e2d\u8f6c\u7ad9\u914d\u7f6e\uff0c\u540c\u65f6\u652f\u6301\u5176\u4ed6 OpenAI \u517c\u5bb9\u4e2d\u8f6c\u7ad9\u548c\u6a21\u578b\u3002",
+  "portapps_version": "3.18.0"
+}
