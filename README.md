@@ -1,97 +1,117 @@
-# Codex DataProxy 使用说明
+# Codex DataProxy
 
-Codex DataProxy 是一个 Windows 便携版启动包，用来启动 Codex Desktop，并通过本地代理接入一个或多个 OpenAI 兼容中转站。
+Codex DataProxy is a portable Windows launcher for Codex Desktop. It starts Codex with an isolated portable data directory and routes Codex API traffic through a local proxy so you can use one or more OpenAI-compatible API gateways.
 
-## 快速使用
+China fast download: https://www.modelscope.cn/models/sunlab-uninstall/uninstall-app
 
-1. 将 `codex-dataproxy.zip` 解压到一个较短的目录，例如：
+Chinese README: [README-zh.md](README-zh.md)
+
+## Features
+
+- Portable Codex Desktop package for Windows.
+- Local settings page at `http://127.0.0.1:<port>/settings`.
+- Multiple gateway profiles in `config/*.yaml`.
+- Multiple API keys under the same `base_url`.
+- Model-to-key routing based on the requested `model`.
+- Automatic `/v1/models` fetching per key.
+- Manual model override per key.
+- Local-only Codex app-server startup for future desktop/mobile integrations.
+- Generated Codex runtime files under `data/.codex`.
+
+## Download
+
+Use the versioned archive from GitHub Releases:
 
 ```text
-C:\CodexDP
+codex-dataproxy-v0.2.0-windows.zip
 ```
 
-2. 双击启动：
+For users in China, use the faster mirror:
+
+```text
+https://www.modelscope.cn/models/sunlab-uninstall/uninstall-app
+```
+
+## Quick Start
+
+1. Download and extract the zip to a short path, for example:
+
+```text
+C:\CodexDataProxy
+```
+
+2. Run:
 
 ```text
 codex-dataproxy.exe
 ```
 
-3. cmd 窗口会显示本地设置页面地址，例如：
+3. Open the settings URL printed in the console:
 
 ```text
 http://127.0.0.1:16666/settings
 ```
 
-打开这个地址，在 settings 页面里配置中转站和 API Key。
+4. Add your gateway `base_url` and API key, then save.
 
-4. 首次启动会自动创建默认配置：
+5. Codex Desktop will continue launching after a valid key is saved.
 
-```text
-config\dataproxy.yaml
-```
+## Model Routing
 
-用户不需要手动编辑配置文件，平时通过 settings 页面添加、编辑、排序和切换中转站。
-
-## 多 Key 模型路由
-
-同一个中转站 `base_url` 可以配置多个 Key。不同 Key 支持的模型可能不同，Codex DataProxy 会根据请求中的 `model` 自动选择可用 Key。
-
-规则：
-
-- `models` 可以为空。
-- 如果某个 Key 的 `models` 为空，则使用该 Key 的 `/v1/models` 自动获取模型。
-- 如果某个 Key 的 `models` 不为空，则手动 `models` 覆盖自动获取结果。
-- 多个 Key 的模型会合并去重。
-- 如果多个 Key 都支持同一个模型，后面的 Key 覆盖前面的 Key。
-
-## 本地代理
-
-Codex Desktop 不直接访问真实中转站，而是固定访问本地代理：
+Codex Desktop talks only to the local proxy:
 
 ```text
 http://127.0.0.1:<port>/v1
 ```
 
-真实中转站地址和 Key 保存在：
+The real upstream API key is injected by Codex DataProxy. For each enabled key:
 
-```text
-config\*.yaml
-```
+- If `models` is empty, Codex DataProxy fetches models from `/v1/models`.
+- If `models` is set, the manual list overrides the fetched list.
+- Models from all enabled keys are merged.
+- Duplicate model IDs are resolved by later keys overriding earlier keys.
+- The default model is the provider `default_model`, or the first merged model.
 
-启动器会自动生成 Codex 运行时文件：
+## Generated Files
+
+Do not edit these files manually:
 
 ```text
 data\.codex\auth.json
 data\.codex\config.toml
 data\.codex\dataproxy-models.json
+data\.codex\dataproxy-app-server.token
 ```
 
-这些文件不要手动修改。
-
-## 权限与沙盒
-
-进入 Codex 后，建议在：
+Gateway configuration is stored in:
 
 ```text
-设置 -> 常规 -> 开启完全访问权限
+config\*.yaml
 ```
 
-如果 Codex 提示设置智能体权限，请选择“完全访问”。
+You can manage it from the settings page instead of editing YAML by hand.
 
-不要右键选择“以管理员身份运行”。Codex 里的“完全访问”是应用内权限，不是 Windows 管理员权限。
+## Permissions
 
-## 重新打包
+Do not run `codex-dataproxy.exe` as Windows administrator. In Codex Desktop, use the in-app permission setting instead.
+
+Recommended Codex setting:
+
+```text
+Settings -> General -> Enable full access
+```
+
+## Build
 
 ```powershell
 .\scripts\build.ps1
 .\scripts\package.ps1
 ```
 
-输出文件：
+Outputs:
 
 ```text
 dist\codex-dataproxy.exe
+dist\codex-dataproxy-v0.2.0-windows.zip
 dist\codex-dataproxy.zip
 ```
-
-配置交流与问题反馈：QQ 交流群 `891855578`

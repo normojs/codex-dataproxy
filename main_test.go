@@ -215,6 +215,38 @@ func TestProviderStoreModelRoutesPreferManualAndLaterKeys(t *testing.T) {
 	}
 }
 
+func TestProviderStoreEnsuresActiveDefaultModel(t *testing.T) {
+	store := &providerStore{
+		dir:        t.TempDir(),
+		autoModels: map[string][]string{},
+		routes:     map[string]modelRoute{},
+		models:     []string{"gpt-5.5", "gpt-5.4"},
+		providers: []upstreamProviderConfig{
+			{
+				ID:      "dataproxy",
+				Name:    "DataProxy",
+				Active:  true,
+				Enabled: true,
+				BaseURL: "https://dp.app.mbu.ltd/v1",
+				Keys: []upstreamKeyConfig{
+					{ID: "main", Name: "Main", APIKey: "sk-test", Enabled: true, Sort: 10},
+				},
+			},
+		},
+	}
+
+	if err := store.ensureActiveDefaultModel(); err != nil {
+		t.Fatalf("ensureActiveDefaultModel returned error: %v", err)
+	}
+	provider, ok := store.activeProvider()
+	if !ok {
+		t.Fatalf("active provider missing after ensureActiveDefaultModel")
+	}
+	if provider.DefaultModel != "gpt-5.5" {
+		t.Fatalf("DefaultModel = %q, want gpt-5.5", provider.DefaultModel)
+	}
+}
+
 func TestMergeEffectiveModelsKeepsConfiguredModelsFirst(t *testing.T) {
 	withDefaultTestConfig(t)
 

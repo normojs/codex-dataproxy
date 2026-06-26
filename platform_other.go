@@ -88,10 +88,23 @@ func normalizePlatformSandboxFromFile(path string) error {
 	return nil
 }
 
+func configureManagedChildProcess(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+}
+
+func terminateManagedChildProcess(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+	}
+}
+
 func launchAndWait(args []string) {
 	if !fileExists(app.Process) {
 		log.Fatal().Msgf("Application not found: %s", app.Process)
 	}
+
+	startRuntimeAppServer(nil)
+	defer stopRuntimeAppServer()
 
 	launchArgs := []string{defaultLanguageArg}
 	launchArgs = append(launchArgs, app.CommonArgs...)

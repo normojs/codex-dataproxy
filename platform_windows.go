@@ -354,6 +354,15 @@ func stripSimpleTomlComment(line string) string {
 	return line
 }
 
+func configureManagedChildProcess(cmd *exec.Cmd) {
+}
+
+func terminateManagedChildProcess(cmd *exec.Cmd) {
+	if cmd != nil && cmd.Process != nil {
+		_ = cmd.Process.Kill()
+	}
+}
+
 type jobObjectBasicLimitInformation struct {
 	PerProcessUserTimeLimit int64
 	PerJobUserTimeLimit     int64
@@ -461,6 +470,13 @@ func launchAndWait(args []string) {
 		log.Warn().Err(err).Msg("Cannot create process cleanup job")
 	}
 	defer job.close()
+
+	var assignToJob func(int) error
+	if job != nil {
+		assignToJob = job.assign
+	}
+	startRuntimeAppServer(assignToJob)
+	defer stopRuntimeAppServer()
 
 	launchArgs := []string{defaultLanguageArg}
 	launchArgs = append(launchArgs, app.CommonArgs...)

@@ -32,10 +32,17 @@ type codexConfig struct {
 	ForceUserprofileHome  bool                         `yaml:"force_userprofile_codex_home" mapstructure:"force_userprofile_codex_home"`
 	SelectedModel         string                       `yaml:"selected_model" mapstructure:"selected_model"`
 	SelectedProvider      string                       `yaml:"selected_provider" mapstructure:"selected_provider"`
+	AppServer             appServerConfig              `yaml:"app_server" mapstructure:"app_server"`
 	AdditionalEnvironment map[string]string            `yaml:"additional_environment" mapstructure:"additional_environment"`
 	Providers             map[string]providerConfig    `yaml:"providers" mapstructure:"providers"`
 	ModelPresets          map[string]modelPresetConfig `yaml:"model_presets" mapstructure:"model_presets"`
 	Models                []modelEntryConfig           `yaml:"models" mapstructure:"models"`
+}
+
+type appServerConfig struct {
+	Enabled bool   `yaml:"enabled" mapstructure:"enabled"`
+	Host    string `yaml:"host" mapstructure:"host"`
+	Port    int    `yaml:"port" mapstructure:"port"`
 }
 
 type providerConfig struct {
@@ -99,6 +106,7 @@ var (
 	cfg               *codexConfig
 	runtimeStore      *providerStore
 	runtimeHTTPServer *localHTTPServer
+	runtimeAppServer  *localAppServer
 )
 
 const (
@@ -114,6 +122,9 @@ const (
 	authModeProviderEnv  = "provider_env"
 	authFileName         = "auth.json"
 	modelsFileName       = "dataproxy-models.json"
+	appServerTokenName   = "dataproxy-app-server.token"
+	defaultAppServerHost = "127.0.0.1"
+	defaultAppServerPort = 17666
 	emptyModelsLabel     = "获取模型为空"
 	persistedAtomState   = "electron-persisted-atom-state"
 	permissionVisibility = "composer-permission-mode-visibility"
@@ -136,10 +147,15 @@ func init() {
 
 func defaultCodexConfig() *codexConfig {
 	return &codexConfig{
-		Executable:            "Codex.exe",
-		ForceUserprofileHome:  false,
-		SelectedModel:         defaultModel,
-		SelectedProvider:      "dataproxy",
+		Executable:           "Codex.exe",
+		ForceUserprofileHome: false,
+		SelectedModel:        defaultModel,
+		SelectedProvider:     "dataproxy",
+		AppServer: appServerConfig{
+			Enabled: true,
+			Host:    defaultAppServerHost,
+			Port:    defaultAppServerPort,
+		},
 		AdditionalEnvironment: map[string]string{},
 		Providers: map[string]providerConfig{
 			"dataproxy": {
@@ -258,13 +274,14 @@ func main() {
 	mustCreateDir(portableAppData)
 	mustCreateDir(portableLocalAppData)
 	cleanupCodexRuntimeState(portableCodexHome)
+	runtimeAppServer = newLocalAppServer(portableCodexHome)
 
 	var err error
 	runtimeStore, err = newProviderStore(filepath.Join(app.RootPath, "config"))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot load provider config")
 	}
-	runtimeHTTPServer, err = startLocalHTTPServer(runtimeStore, portableCodexHome)
+	runtimeHTTPServer, err = startLocalHTTPServer(runtimeStore, portableCodexHome, runtimeAppServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot start local settings server")
 	}
@@ -282,6 +299,9 @@ func main() {
 		log.Warn().Err(err).Msg("Cannot refresh active provider models")
 	}
 	cancel()
+	if err := runtimeStore.ensureActiveDefaultModel(); err != nil {
+		log.Warn().Err(err).Msg("Cannot persist active default model")
+	}
 
 	syncCodexAuth(portableCodexHome)
 	modelList := syncDynamicModelList(portableCodexHome)

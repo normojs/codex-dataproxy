@@ -3,7 +3,10 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist"
 $stage = Join-Path $dist "codex-dataproxy"
-$zip = Join-Path $dist "codex-dataproxy.zip"
+$portapp = Get-Content (Join-Path $root "portapp.json") -Raw | ConvertFrom-Json
+$version = $portapp.version
+$zip = Join-Path $dist ("codex-dataproxy-v{0}-windows.zip" -f $version)
+$latestZip = Join-Path $dist "codex-dataproxy.zip"
 
 if (Test-Path $stage) {
     Remove-Item $stage -Recurse -Force
@@ -13,7 +16,14 @@ New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item (Join-Path $dist "codex-dataproxy.exe") $stage -Force
 Copy-Item (Join-Path $root "portapp.json") $stage -Force
 Copy-Item (Join-Path $root "README.md") $stage -Force
+Copy-Item (Join-Path $root "README-zh.md") $stage -Force
+Copy-Item (Join-Path $root "CHANGELOG.md") $stage -Force
 Copy-Item (Join-Path $root "USAGE.md") $stage -Force
+@"
+Codex DataProxy
+Version: $version
+Build date: $(Get-Date -Format "yyyy-MM-dd")
+"@ | Set-Content (Join-Path $stage "VERSION.txt") -Encoding UTF8
 
 $appDir = Join-Path $root "app"
 if (!(Test-Path $appDir)) {
@@ -32,6 +42,11 @@ New-Item -ItemType Directory -Force (Join-Path $stage "data\.codex") | Out-Null
 if (Test-Path $zip) {
     Remove-Item $zip -Force
 }
+if (Test-Path $latestZip) {
+    Remove-Item $latestZip -Force
+}
 Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
+Copy-Item $zip $latestZip -Force
 
 Write-Host "Packaged: $zip"
+Write-Host "Latest copy: $latestZip"

@@ -62,6 +62,7 @@ type localHTTPServer struct {
 	listener  net.Listener
 	store     *providerStore
 	codexHome string
+	appServer *localAppServer
 	baseURL   string
 }
 
@@ -401,6 +402,36 @@ func (s *providerStore) defaultModel() string {
 	return ""
 }
 
+func (s *providerStore) ensureActiveDefaultModel() error {
+	s.mu.Lock()
+	changed := false
+	for i := range s.providers {
+		if !s.providers[i].Active || !s.providers[i].Enabled {
+			continue
+		}
+		if strings.TrimSpace(s.providers[i].DefaultModel) == "" && len(s.models) > 0 {
+			s.providers[i].DefaultModel = s.models[0]
+			changed = true
+		}
+		break
+	}
+	providers := append([]upstreamProviderConfig{}, s.providers...)
+	if changed {
+		s.rebuildRoutesLocked()
+	}
+	s.mu.Unlock()
+
+	if !changed {
+		return nil
+	}
+	for _, item := range providers {
+		if err := s.writeProvider(item); err != nil {
+			return err
+		}
+	}
+	return s.load()
+}
+
 func (s *providerStore) modelIDs() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -573,7 +604,7 @@ func (s *providerStore) keyForModel(model string) (upstreamProviderConfig, upstr
 	return upstreamProviderConfig{}, upstreamKeyConfig{}, false
 }
 
-func startLocalHTTPServer(store *providerStore, codexHome string) (*localHTTPServer, error) {
+func startLocalHTTPServer(store *providerStore, codexHome string, appServer *localAppServer) (*localHTTPServer, error) {
 	var listener net.Listener
 	var err error
 	for port := 16666; port < 16720; port++ {
@@ -590,6 +621,7 @@ func startLocalHTTPServer(store *providerStore, codexHome string) (*localHTTPSer
 		listener:  listener,
 		store:     store,
 		codexHome: codexHome,
+		appServer: appServer,
 		baseURL:   "http://" + listener.Addr().String(),
 	}
 
@@ -641,6 +673,7 @@ func (s *localHTTPServer) handleProviders(w http.ResponseWriter, r *http.Request
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		_ = s.store.refreshActiveModels(ctx)
 		cancel()
+		_ = s.store.ensureActiveDefaultModel()
 		_ = syncDynamicModelList(s.codexHome)
 		writeJSON(w, map[string]bool{"ok": true})
 		return
@@ -658,11 +691,19 @@ func (s *localHTTPServer) handleProviders(w http.ResponseWriter, r *http.Request
 	}
 	s.store.mu.RUnlock()
 	writeJSON(w, map[string]any{
-		"providers": providers,
-		"models":    models,
-		"routes":    routes,
-		"proxy_url": s.proxyBaseURL(),
+		"providers":  providers,
+		"models":     models,
+		"routes":     routes,
+		"proxy_url":  s.proxyBaseURL(),
+		"app_server": s.appServerStatus(),
 	})
+}
+
+func (s *localHTTPServer) appServerStatus() appServerStatus {
+	if s == nil || s.appServer == nil {
+		return appServerStatus{Enabled: false, Status: appServerStatusDisabled}
+	}
+	return s.appServer.snapshot()
 }
 
 func (s *localHTTPServer) handleActivateProvider(w http.ResponseWriter, r *http.Request) {
@@ -684,6 +725,7 @@ func (s *localHTTPServer) handleActivateProvider(w http.ResponseWriter, r *http.
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	_ = s.store.refreshActiveModels(ctx)
 	cancel()
+	_ = s.store.ensureActiveDefaultModel()
 	_ = syncDynamicModelList(s.codexHome)
 	writeJSON(w, map[string]bool{"ok": true})
 }
@@ -696,6 +738,7 @@ func (s *localHTTPServer) handleRefreshModels(w http.ResponseWriter, r *http.Req
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	err := s.store.refreshActiveModels(ctx)
+	_ = s.store.ensureActiveDefaultModel()
 	result := syncDynamicModelList(s.codexHome)
 	if err != nil {
 		writeJSONStatus(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "models": result.Models})
