@@ -13,7 +13,7 @@ if (Test-Path $stage) {
 }
 New-Item -ItemType Directory -Force $stage | Out-Null
 
-Copy-Item (Join-Path $dist "codex-dataproxy.exe") $stage -Force
+Copy-Item (Join-Path $dist "codex-dp.exe") $stage -Force
 Copy-Item (Join-Path $root "portapp.json") $stage -Force
 Copy-Item (Join-Path $root "README.md") $stage -Force
 Copy-Item (Join-Path $root "README-zh.md") $stage -Force
@@ -45,7 +45,23 @@ if (Test-Path $zip) {
 if (Test-Path $latestZip) {
     Remove-Item $latestZip -Force
 }
-Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip -Force
+
+$tarCommand = Get-Command tar.exe -ErrorAction SilentlyContinue
+if (!$tarCommand) {
+    throw "tar.exe was not found. It is required to package the Electron app reliably."
+}
+
+Push-Location $stage
+try {
+    & $tarCommand.Source -a -cf $zip *
+    if ($LASTEXITCODE -ne 0) {
+        throw "tar.exe packaging failed with exit code $LASTEXITCODE"
+    }
+}
+finally {
+    Pop-Location
+}
+
 Copy-Item $zip $latestZip -Force
 
 Write-Host "Packaged: $zip"

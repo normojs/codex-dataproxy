@@ -42,7 +42,7 @@ const settingsPageHTML = `<!doctype html>
       font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
       letter-spacing: 0;
     }
-    button, input {
+    button, input, textarea {
       font: inherit;
     }
     button {
@@ -193,7 +193,7 @@ const settingsPageHTML = `<!doctype html>
     }
     .provider-item {
       display: grid;
-      grid-template-columns: 18px minmax(0, 1fr);
+      grid-template-columns: 18px minmax(0, 1fr) auto;
       gap: 10px;
       width: 100%;
       min-height: 74px;
@@ -239,6 +239,18 @@ const settingsPageHTML = `<!doctype html>
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    .provider-tools {
+      display: grid;
+      grid-template-columns: repeat(2, 30px);
+      gap: 5px;
+      align-content: start;
+    }
+    .provider-tools .btn.icon {
+      width: 30px;
+      min-width: 30px;
+      min-height: 30px;
+      font-size: 12px;
     }
     .editor {
       display: grid;
@@ -392,9 +404,9 @@ const settingsPageHTML = `<!doctype html>
     }
     input[type="text"],
     input[type="password"],
-    input[type="number"] {
+    input[type="number"],
+    textarea {
       width: 100%;
-      height: 36px;
       min-width: 0;
       padding: 0 10px;
       border: 1px solid var(--line);
@@ -403,9 +415,21 @@ const settingsPageHTML = `<!doctype html>
       color: var(--text);
       outline: none;
     }
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      height: 36px;
+    }
+    textarea {
+      min-height: 72px;
+      padding-top: 9px;
+      padding-bottom: 9px;
+      resize: vertical;
+    }
     input[type="text"]:focus,
     input[type="password"]:focus,
-    input[type="number"]:focus {
+    input[type="number"]:focus,
+    textarea:focus {
       border-color: rgba(16, 163, 127, 0.55);
       box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.12);
     }
@@ -434,19 +458,30 @@ const settingsPageHTML = `<!doctype html>
     }
     .key-row {
       display: grid;
-      grid-template-columns: minmax(150px, 0.8fr) minmax(190px, 1fr) minmax(190px, 1fr) 144px;
-      gap: 10px;
-      align-items: end;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: start;
       min-width: 0;
       padding: 12px;
       border: 1px solid rgba(217, 223, 220, 0.86);
       border-radius: 8px;
       background: #ffffff;
     }
+    .key-fields {
+      display: grid;
+      grid-template-columns: minmax(170px, 0.8fr) minmax(220px, 1fr) minmax(220px, 1.15fr);
+      gap: 10px;
+      align-items: start;
+      min-width: 0;
+    }
+    .key-field-models {
+      min-width: 0;
+    }
     .key-tools {
       display: grid;
-      grid-template-columns: repeat(4, 34px);
+      grid-template-columns: repeat(5, 34px);
       gap: 6px;
+      align-self: end;
       justify-content: end;
     }
     .secret-field {
@@ -536,6 +571,15 @@ const settingsPageHTML = `<!doctype html>
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+    .diagnostic {
+      display: inline-flex;
+      max-width: 100%;
+      color: var(--muted);
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .empty {
       padding: 18px;
       color: var(--muted);
@@ -558,6 +602,20 @@ const settingsPageHTML = `<!doctype html>
     .statusbar span {
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    @media (max-width: 1480px) {
+      .key-row {
+        grid-template-columns: 1fr;
+      }
+      .key-fields {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .key-field-models {
+        grid-column: 1 / -1;
+      }
+      .key-tools {
+        justify-content: start;
+      }
     }
     @media (max-width: 1200px) {
       .layout {
@@ -593,8 +651,11 @@ const settingsPageHTML = `<!doctype html>
         padding: 16px;
       }
       .form-grid,
-      .key-row {
+      .key-fields {
         grid-template-columns: 1fr;
+      }
+      .key-field-models {
+        grid-column: auto;
       }
       .key-tools {
         justify-content: start;
@@ -618,6 +679,8 @@ const settingsPageHTML = `<!doctype html>
         </div>
       </div>
       <div class="top-actions">
+        <button class="btn" type="button" id="connectDataProxyButton">绑定 DataProxy</button>
+        <span class="badge" id="deviceAuthBadge">未绑定</span>
         <span class="badge green"><span class="dot good"></span>Local only</span>
         <span class="badge blue" id="activeBadge">加载中</span>
       </div>
@@ -645,8 +708,10 @@ const settingsPageHTML = `<!doctype html>
             </div>
           </div>
           <div class="actions">
+            <button class="btn" type="button" id="testButton">测试连接</button>
             <button class="btn" type="button" id="refreshButton">刷新模型</button>
             <button class="btn blue" type="button" id="activateButton">设为当前</button>
+            <button class="btn danger" type="button" id="deleteButton">删除</button>
             <button class="btn primary" type="button" id="saveButton">保存</button>
           </div>
         </div>
@@ -686,6 +751,10 @@ const settingsPageHTML = `<!doctype html>
                 <div class="field">
                   <label for="proxyInput">本地代理</label>
                   <input id="proxyInput" type="text" readonly />
+                </div>
+                <div class="field full">
+                  <label for="aliasesInput">模型别名</label>
+                  <textarea id="aliasesInput" placeholder="gpt-5.5=upstream-model&#10;codex-default=qwen/qwen3-coder"></textarea>
                 </div>
               </div>
             </section>
@@ -737,9 +806,14 @@ const settingsPageHTML = `<!doctype html>
   </div>
 
   <script>
+    const CSRF_TOKEN = "{{CSRF_TOKEN}}";
     const api = path => path;
     const apiFetch = (path, options = {}) => {
       const headers = Object.assign({}, options.headers || {});
+      const method = String(options.method || "GET").toUpperCase();
+      if (method !== "GET" && method !== "HEAD") {
+        headers["X-CSRF-Token"] = CSRF_TOKEN;
+      }
       return fetch(api(path), Object.assign({}, options, { headers, credentials: "same-origin" }));
     };
 
@@ -747,6 +821,7 @@ const settingsPageHTML = `<!doctype html>
     let currentData = {};
     let currentProvider = {};
     let isDirty = false;
+    let devicePollTimer = null;
 
     async function loadProviders() {
       setStatus("正在读取配置");
@@ -772,7 +847,7 @@ const settingsPageHTML = `<!doctype html>
         const stateClass = provider.active ? "good" : (readyCount > 0 ? "warn" : "");
         const selectedClass = provider.id === selected.id ? " selected" : "";
         const enabledText = provider.enabled === false ? "已停用" : "已启用";
-        return '<button class="provider-item' + selectedClass + '" type="button" onclick="selectProvider(' + "'" + escapeJS(provider.id) + "'" + ')">' +
+        return '<div class="provider-item' + selectedClass + '" role="button" tabindex="0" onclick="selectProvider(' + "'" + escapeJS(provider.id) + "'" + ')">' +
           '<span class="dot ' + stateClass + '"></span>' +
           '<span>' +
             '<span class="provider-title"><strong>' + escapeHtml(provider.name || provider.id || "未命名") + '</strong><span class="badge">' + enabledText + '</span></span>' +
@@ -781,7 +856,11 @@ const settingsPageHTML = `<!doctype html>
               '<span>' + escapeHtml(provider.default_model || provider.base_url || "-") + '</span>' +
             '</span>' +
           '</span>' +
-        '</button>';
+          '<span class="provider-tools">' +
+            '<button class="btn icon ghost" type="button" onclick="event.stopPropagation(); moveProvider(' + "'" + escapeJS(provider.id) + "'" + ', -1)" title="上移">↑</button>' +
+            '<button class="btn icon ghost" type="button" onclick="event.stopPropagation(); moveProvider(' + "'" + escapeJS(provider.id) + "'" + ', 1)" title="下移">↓</button>' +
+          '</span>' +
+        '</div>';
       }).join("") || '<div class="empty">暂无中转站</div>';
     }
 
@@ -805,6 +884,7 @@ const settingsPageHTML = `<!doctype html>
       document.getElementById("sortInput").value = provider.sort || 10;
       document.getElementById("enabledInput").checked = provider.enabled !== false;
       document.getElementById("proxyInput").value = data.proxy_url || "";
+      document.getElementById("aliasesInput").value = formatAliases(provider.model_aliases || {});
 
       renderStatus(data, provider);
       renderKeyRoutes(provider);
@@ -826,29 +906,35 @@ const settingsPageHTML = `<!doctype html>
       const keys = provider.keys || [];
       document.getElementById("keyRoutes").innerHTML = keys.map((key, index) => {
         const ready = validKey(key);
+        const status = keyStatus(provider.id, key.id);
+        const statusText = formatKeyStatus(status, ready);
         return '<article class="key-row" data-key-index="' + index + '">' +
-          '<div class="field">' +
-            '<label>Key 名称</label>' +
-            '<input class="key-name" type="text" value="' + escapeAttr(key.name || "") + '" placeholder="例如 GPT 主 Key">' +
-            '<div class="compact-controls">' +
-              '<label class="toggle-row"><input class="key-enabled" type="checkbox" ' + (key.enabled !== false ? "checked" : "") + '> 启用</label>' +
-              '<label class="toggle-row"><input class="key-default" type="radio" name="defaultKey" ' + (key.default ? "checked" : "") + ' onchange="makeDefaultKey(' + index + ')"> 默认</label>' +
+          '<div class="key-fields">' +
+            '<div class="field">' +
+              '<label>Key 名称</label>' +
+              '<input class="key-name" type="text" value="' + escapeAttr(key.name || "") + '" placeholder="例如 GPT 主 Key">' +
+              '<div class="compact-controls">' +
+                '<label class="toggle-row"><input class="key-enabled" type="checkbox" ' + (key.enabled !== false ? "checked" : "") + '> 启用</label>' +
+                '<label class="toggle-row"><input class="key-default" type="radio" name="defaultKey" ' + (key.default ? "checked" : "") + ' onchange="makeDefaultKey(' + index + ')"> 默认</label>' +
+              '</div>' +
             '</div>' +
-          '</div>' +
-          '<div class="field">' +
-            '<label>API Key</label>' +
-            '<span class="secret-field">' +
-              '<input class="key-api" type="password" value="' + escapeAttr(key.api_key || "") + '" placeholder="sk-...">' +
-              '<button class="btn icon" type="button" onclick="toggleKeyVisibility(this)" aria-label="显示或隐藏 API Key" title="显示或隐藏 API Key">' + eyeIcon(false) + '</button>' +
-            '</span>' +
-          '</div>' +
-          '<div class="field">' +
-            '<label>手动模型</label>' +
-            '<input class="key-models" type="text" value="' + escapeAttr(key.models || "") + '" placeholder="留空时自动读取 /v1/models">' +
+            '<div class="field">' +
+              '<label>API Key</label>' +
+              '<span class="secret-field">' +
+                '<input class="key-api" type="password" value="' + escapeAttr(key.api_key || "") + '" placeholder="sk-...">' +
+                '<button class="btn icon" type="button" onclick="toggleKeyVisibility(this)" aria-label="显示或隐藏 API Key" title="显示或隐藏 API Key">' + eyeIcon(false) + '</button>' +
+              '</span>' +
+            '</div>' +
+            '<div class="field key-field-models">' +
+              '<label>手动模型</label>' +
+              '<input class="key-models" type="text" value="' + escapeAttr(key.models || "") + '" placeholder="留空时自动读取 base_url + /models">' +
+              '<span class="diagnostic" title="' + escapeAttr(statusText) + '">' + escapeHtml(statusText) + '</span>' +
+            '</div>' +
           '</div>' +
           '<div class="key-tools">' +
             '<button class="btn icon ghost" type="button" onclick="moveKey(' + index + ', -1)" title="上移">↑</button>' +
             '<button class="btn icon ghost" type="button" onclick="moveKey(' + index + ', 1)" title="下移">↓</button>' +
+            '<button class="btn icon ghost" type="button" onclick="testKey(' + index + ')" title="测试 Key">T</button>' +
             '<button class="btn icon ghost" type="button" title="' + (ready ? "Key 已配置" : "Key 未配置") + '">' + (ready ? "✓" : "!") + '</button>' +
             '<button class="btn icon danger" type="button" onclick="removeKey(' + index + ')" title="删除">×</button>' +
           '</div>' +
@@ -859,6 +945,7 @@ const settingsPageHTML = `<!doctype html>
     function renderModels(data, provider) {
       const query = (document.getElementById("modelSearchInput").value || "").toLowerCase();
       const routes = data.routes || {};
+      const duplicates = data.duplicate_routes || {};
       const defaultModel = actualDefaultModel(provider, data);
       const models = (data.models || []).filter(model => model.toLowerCase().includes(query));
       document.getElementById("modelRouteBadge").textContent = models.length + " 个";
@@ -867,9 +954,10 @@ const settingsPageHTML = `<!doctype html>
         const routeProvider = ((currentData.providers || []).find(item => item.id === route.provider_id)) || provider;
         const keyName = keyDisplayName(routeProvider, route.key_id);
         const source = (model === defaultModel ? "默认 · " : "") + (route.manual ? "手动" : "自动");
+        const duplicateText = (duplicates[model] || []).length > 1 ? " · 重复路由 " + duplicates[model].map(item => keyDisplayName(routeProvider, item.key_id)).join(" / ") : "";
         return '<div class="model-item">' +
           '<strong>' + escapeHtml(model) + '</strong>' +
-          '<span>' + escapeHtml(keyName || "-") + ' · ' + source + '</span>' +
+          '<span>' + escapeHtml(keyName || "-") + ' · ' + source + escapeHtml(duplicateText) + '</span>' +
         '</div>';
       }).join("") || '<div class="empty">暂无模型</div>';
     }
@@ -911,6 +999,7 @@ const settingsPageHTML = `<!doctype html>
       provider.default_model = document.getElementById("defaultModelInput").value.trim();
       provider.sort = Number(document.getElementById("sortInput").value || 10);
       provider.enabled = document.getElementById("enabledInput").checked;
+      provider.model_aliases = parseAliases(document.getElementById("aliasesInput").value);
       provider.keys = Array.from(document.querySelectorAll("[data-key-index]")).map((row, index) => {
         const old = (currentProvider.keys || [])[Number(row.dataset.keyIndex)] || {};
         return {
@@ -931,7 +1020,15 @@ const settingsPageHTML = `<!doctype html>
 
     function idFromName(name) {
       const clean = String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      return clean || "provider-" + (((currentData.providers || []).length || 0) + 1);
+      return clean || nextProviderId();
+    }
+
+    function nextProviderId() {
+      const providers = (currentData && currentData.providers) || [];
+      const used = new Set(providers.map(provider => String(provider.id || "")));
+      let index = providers.length + 1;
+      while (used.has("provider-" + index)) index += 1;
+      return "provider-" + index;
     }
 
     async function saveProvider() {
@@ -994,9 +1091,170 @@ const settingsPageHTML = `<!doctype html>
       }
     }
 
+    async function connectDataProxy() {
+      const button = document.getElementById("connectDataProxyButton");
+      button.disabled = true;
+      setDeviceAuthStatus("正在创建授权");
+      try {
+        const response = await apiFetch("/api/dataproxy/device/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({})
+        });
+        const session = await response.json();
+        if (!response.ok) throw new Error(session.error || "授权启动失败");
+        if (session.verification_uri_complete) {
+          window.open(session.verification_uri_complete, "_blank", "noopener,noreferrer");
+        }
+        setDeviceAuthStatus("等待授权 " + (session.user_code || ""));
+        scheduleDevicePoll(session);
+      } catch (error) {
+        alert("DataProxy 授权失败：" + error.message);
+        setDeviceAuthStatus("授权失败");
+        button.disabled = false;
+      }
+    }
+
+    function scheduleDevicePoll(session) {
+      if (devicePollTimer) clearTimeout(devicePollTimer);
+      const delay = Math.max(2, Number(session.interval || 3)) * 1000;
+      devicePollTimer = setTimeout(() => pollDataProxyDevice(session), delay);
+    }
+
+    async function pollDataProxyDevice(session) {
+      try {
+        const response = await apiFetch("/api/dataproxy/device/poll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            server_url: session.server_url,
+            device_id: session.device_id,
+            device_code: session.device_code
+          })
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "授权轮询失败");
+        if (result.status === "authorized") {
+          setDeviceAuthStatus("已绑定");
+          document.getElementById("connectDataProxyButton").disabled = false;
+          await loadProviders();
+          return;
+        }
+        if (result.status === "denied" || result.status === "expired" || result.status === "invalid_device_code") {
+          setDeviceAuthStatus("授权结束：" + result.status);
+          document.getElementById("connectDataProxyButton").disabled = false;
+          return;
+        }
+        setDeviceAuthStatus(result.status || "等待授权");
+        scheduleDevicePoll(Object.assign({}, session, { interval: result.interval || session.interval }));
+      } catch (error) {
+        alert("DataProxy 授权失败：" + error.message);
+        setDeviceAuthStatus("授权失败");
+        document.getElementById("connectDataProxyButton").disabled = false;
+      }
+    }
+
+    async function testProvider() {
+      const provider = collectProvider();
+      const button = document.getElementById("testButton");
+      button.disabled = true;
+      button.textContent = "测试中";
+      setStatus("正在测试连接");
+      try {
+        const response = await apiFetch("/api/providers/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider })
+        });
+        const result = await response.json();
+        mergeKeyStatuses(result.results || []);
+        renderKeyRoutes(provider);
+        renderModels(currentData, provider);
+        if (!response.ok) throw new Error(result.error || "测试失败");
+        setStatus("连接测试成功");
+      } catch (error) {
+        alert("测试失败：" + error.message);
+        setStatus("测试失败");
+      } finally {
+        button.disabled = false;
+        button.textContent = "测试连接";
+      }
+    }
+
+    async function testKey(index) {
+      const provider = collectProvider();
+      const key = (provider.keys || [])[index];
+      if (!key) return;
+      setStatus("正在测试 Key");
+      try {
+        const response = await apiFetch("/api/providers/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider, key_id: key.id })
+        });
+        const result = await response.json();
+        mergeKeyStatuses(result.results || []);
+        currentProvider = provider;
+        renderKeyRoutes(provider);
+        if (!response.ok) throw new Error(result.error || "Key 测试失败");
+        setStatus("Key 测试成功");
+      } catch (error) {
+        alert("Key 测试失败：" + error.message);
+        setStatus("Key 测试失败");
+      }
+    }
+
+    async function deleteProvider() {
+      const provider = collectProvider();
+      if (!provider.id) return;
+      if (!confirm("删除中转站 " + (provider.name || provider.id) + "？")) return;
+      const button = document.getElementById("deleteButton");
+      button.disabled = true;
+      setStatus("正在删除");
+      try {
+        const response = await apiFetch("/api/providers/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: provider.id })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        selectedId = "";
+        await loadProviders();
+      } catch (error) {
+        alert("删除失败：" + error.message);
+        setStatus("删除失败");
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function moveProvider(id, direction) {
+      const providers = (currentData.providers || []).slice();
+      const index = providers.findIndex(provider => provider.id === id);
+      const next = index + direction;
+      if (index < 0 || next < 0 || next >= providers.length) return;
+      const item = providers[index];
+      providers[index] = providers[next];
+      providers[next] = item;
+      const ids = providers.map(provider => provider.id);
+      setStatus("正在更新排序");
+      try {
+        const response = await apiFetch("/api/providers/reorder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        await loadProviders();
+      } catch (error) {
+        alert("排序失败：" + error.message);
+        setStatus("排序失败");
+      }
+    }
+
     function addProvider() {
       const count = ((currentData && currentData.providers) || []).length + 1;
-      selectedId = "provider-" + count;
+      selectedId = nextProviderId();
       const provider = {
         id: selectedId,
         name: "新中转站",
@@ -1005,6 +1263,7 @@ const settingsPageHTML = `<!doctype html>
         sort: count * 10,
         base_url: "",
         default_model: "",
+        model_aliases: {},
         keys: [emptyKey(1, true)]
       };
       currentData.providers = currentData.providers || [];
@@ -1015,7 +1274,7 @@ const settingsPageHTML = `<!doctype html>
     function addKey() {
       currentProvider = collectProvider();
       currentProvider.keys = currentProvider.keys || [];
-      currentProvider.keys.push(emptyKey(currentProvider.keys.length + 1, currentProvider.keys.length === 0));
+      currentProvider.keys.push(emptyKey(nextKeyIndex(currentProvider.keys), currentProvider.keys.length === 0));
       renderProvider(currentProvider, currentData);
       setDirty();
     }
@@ -1063,8 +1322,15 @@ const settingsPageHTML = `<!doctype html>
       button.innerHTML = eyeIcon(!visible);
     }
 
+    function nextKeyIndex(keys) {
+      const used = new Set((keys || []).map(key => String(key.id || "")));
+      let index = (keys || []).length + 1;
+      while (used.has("key-" + index)) index += 1;
+      return index;
+    }
+
     function validKey(key) {
-      return key && key.enabled !== false && key.api_key && key.api_key.toLowerCase() !== "sk-xx";
+      return key && key.enabled !== false && (key.api_key_set || key.api_key) && String(key.api_key || "").toLowerCase() !== "sk-xx";
     }
 
     function keyDisplayName(provider, keyId) {
@@ -1072,8 +1338,53 @@ const settingsPageHTML = `<!doctype html>
       return (key && (key.name || key.id)) || keyId || "key";
     }
 
+    function keyStatus(providerId, keyId) {
+      return ((currentData && currentData.key_status) || {})[(providerId || "") + "/" + (keyId || "")] || {};
+    }
+
+    function mergeKeyStatuses(results) {
+      currentData.key_status = currentData.key_status || {};
+      (results || []).forEach(status => {
+        if (status.provider_id && status.key_id) {
+          currentData.key_status[status.provider_id + "/" + status.key_id] = status;
+        }
+      });
+    }
+
+    function formatKeyStatus(status, ready) {
+      if (!status || !status.status) {
+        return ready ? "未测试" : "未配置";
+      }
+      const parts = [status.status];
+      if (status.model_count) parts.push(status.model_count + " models");
+      if (status.http_status) parts.push(status.http_status);
+      if (status.latency_ms) parts.push(status.latency_ms + "ms");
+      if (status.last_refresh_at) parts.push(status.last_refresh_at.replace("T", " ").replace(/Z$/, ""));
+      if (status.error) parts.push(status.error);
+      return parts.join(" · ");
+    }
+
     function actualDefaultModel(provider, data) {
       return (provider && provider.default_model) || ((data && data.models) || [])[0] || "-";
+    }
+
+    function formatAliases(aliases) {
+      return Object.keys(aliases || {}).sort().map(key => key + "=" + aliases[key]).join("\n");
+    }
+
+    function parseAliases(raw) {
+      const aliases = {};
+      String(raw || "").split(/\r?\n|,/).forEach(line => {
+        const text = line.trim();
+        if (!text) return;
+        const separator = text.includes("=") ? "=" : ":";
+        const parts = text.split(separator);
+        if (parts.length < 2) return;
+        const source = parts.shift().trim();
+        const target = parts.join(separator).trim();
+        if (source && target) aliases[source] = target;
+      });
+      return aliases;
     }
 
     function eyeIcon(visible) {
@@ -1094,6 +1405,10 @@ const settingsPageHTML = `<!doctype html>
       }
     }
 
+    function setDeviceAuthStatus(text) {
+      document.getElementById("deviceAuthBadge").textContent = text || "-";
+    }
+
     function escapeHtml(value) {
       return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
     }
@@ -1106,9 +1421,12 @@ const settingsPageHTML = `<!doctype html>
       return String(value || "").replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\r/g, "").replace(/\n/g, "");
     }
 
+    document.getElementById("connectDataProxyButton").addEventListener("click", connectDataProxy);
     document.getElementById("refreshButton").addEventListener("click", refreshModels);
+    document.getElementById("testButton").addEventListener("click", testProvider);
     document.getElementById("saveButton").addEventListener("click", saveProvider);
     document.getElementById("activateButton").addEventListener("click", activateProvider);
+    document.getElementById("deleteButton").addEventListener("click", deleteProvider);
     document.getElementById("addKeyButton").addEventListener("click", addKey);
     document.getElementById("addProviderButton").addEventListener("click", addProvider);
     document.getElementById("modelSearchInput").addEventListener("input", () => renderModels(currentData, currentProvider));

@@ -76,14 +76,14 @@ func relaunchUnelevatedIfNeeded() bool {
 	if err := relaunchThroughExplorer(); err != nil {
 		printConsoleLine("")
 		printConsoleLine("自动切换到普通权限失败：" + err.Error())
-		printConsoleLine("请关闭此窗口后，直接双击 codex-dataproxy.exe 启动。")
+		printConsoleLine("请关闭此窗口后，直接双击 codex-dp.exe 启动。")
 		printConsoleLine("按 Enter 键退出...")
 		waitForEnterToExit()
 		return true
 	}
 
 	printConsoleLine("已尝试以普通用户权限重新打开 Codex DataProxy。")
-	printConsoleLine("如果新窗口没有出现，请关闭此窗口后直接双击 codex-dataproxy.exe。")
+	printConsoleLine("如果新窗口没有出现，请关闭此窗口后直接双击 codex-dp.exe。")
 	printConsoleLine("当前管理员窗口将在 5 秒后关闭...")
 	time.Sleep(5 * time.Second)
 	return true

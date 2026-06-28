@@ -1,0 +1,180 @@
+name: CI and Release
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "Publish a GitHub Release when running from a v* tag"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        shell: pwsh
+        run: go test ./...
+
+      - name: Run vet
+        shell: pwsh
+        run: go vet ./...
+
+      - name: Check settings page JavaScript
+        shell: pwsh
+        run: |
+          $raw = Get-Content -Path settings_page.go -Encoding UTF8 -Raw
+          $match = [regex]::Match($raw, '(?s)<script>\s*(.*?)\s*</script>')
+          if (!$match.Success) {
+            throw "script block not found"
+          }
+          $script = $match.Groups[1].Value.Replace('{{CSRF_TOKEN}}', 'test-token').Replace('{{BASE_URL}}', 'http://127.0.0.1:16666')
+          $script | node --check
+
+          $ids = [regex]::Matches($raw, 'id="([^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $refs = [regex]::Matches($raw, 'getElementById\("([^"]+)"\)') | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+          $missing = Compare-Object -ReferenceObject $ids -DifferenceObject $refs -PassThru | Where-Object { $refs -contains $_ -and !($ids -contains $_) }
+          if ($missing) {
+            throw "missing DOM ids: $($missing -join ', ')"
+          }
+
+  package:
+    name: Package Windows
+    runs-on: windows-latest
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+    env:
+      BASE_ZIP_URL: ${{ secrets.CODEX_DATAPROXY_BASE_ZIP_URL || vars.CODEX_DATAPROXY_BASE_ZIP_URL }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Install Python build dependency
+        shell: pwsh
+        run: python -m pip install --upgrade pillow
+
+      - name: Restore bundled Codex app from base package
+        shell: pwsh
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:BASE_ZIP_URL)) {
+            throw "Set repository variable or secret CODEX_DATAPROXY_BASE_ZIP_URL to a previous full Windows package zip URL."
+          }
+
+          $baseZip = Join-Path $env:RUNNER_TEMP "codex-dataproxy-base.zip"
+          $baseExtract = Join-Path $env:RUNNER_TEMP "codex-dataproxy-base"
+          Invoke-WebRequest -Uri $env:BASE_ZIP_URL -OutFile $baseZip
+          if (Test-Path $baseExtract) {
+            Remove-Item $baseExtract -Recurse -Force
+          }
+          New-Item -ItemType Directory -Force $baseExtract | Out-Null
+          tar.exe -xf $baseZip -C $baseExtract
+
+          $appSource = Join-Path $baseExtract "app"
+          if (!(Test-Path (Join-Path $appSource "Codex.exe"))) {
+            $appSource = Get-ChildItem -Path $baseExtract -Directory -Recurse -Filter app |
+              Where-Object { Test-Path (Join-Path $_.FullName "Codex.exe") } |
+              Select-Object -First 1 -ExpandProperty FullName
+          }
+          if ([string]::IsNullOrWhiteSpace($appSource) -or !(Test-Path (Join-Path $appSource "Codex.exe"))) {
+            throw "Cannot find bundled app/Codex.exe in base package."
+          }
+
+          if (Test-Path app) {
+            Remove-Item app -Recurse -Force
+          }
+          Copy-Item $appSource app -Recurse -Force
+
+      - name: Build launcher
+        shell: pwsh
+        run: .\scripts\build.ps1
+
+      - name: Package release zip
+        shell: pwsh
+        run: .\scripts\package.ps1
+
+      - name: Verify package contents
+        shell: pwsh
+        run: |
+          $version = (Get-Content portapp.json -Raw | ConvertFrom-Json).version
+          $zip = "dist\codex-dataproxy-v$version-windows.zip"
+          if (!(Test-Path $zip)) {
+            throw "Missing package: $zip"
+          }
+          $entries = tar.exe -tf $zip
+          foreach ($required in @("codex-dp.exe", "app/Codex.exe", "app/resources/app.asar", "VERSION.txt")) {
+            if (!($entries -contains $required)) {
+              throw "Package missing $required"
+            }
+          }
+          if ($entries -contains "codex-dataproxy.exe") {
+            throw "Package still contains old launcher name codex-dataproxy.exe"
+          }
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-dataproxy-windows
+          path: |
+            dist/codex-dp.exe
+            dist/codex-dataproxy-v*-windows.zip
+            dist/codex-dataproxy.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && (github.event_name != 'workflow_dispatch' || inputs.publish_release)
+        shell: pwsh
+        run: |
+          $version = (Get-Content portapp.json -Raw | ConvertFrom-Json).version
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -ne "v$version") {
+            throw "Tag $tag does not match portapp.json version v$version"
+          }
+          gh release create $tag `
+            "dist/codex-dataproxy-v$version-windows.zip" `
+            "dist/codex-dataproxy.zip" `
+            --title "Codex DataProxy $tag" `
+            --generate-notes `
+            --latest

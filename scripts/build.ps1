@@ -73,7 +73,7 @@ try {
         throw "go mod tidy failed with exit code $LASTEXITCODE"
     }
 
-    & $go build -trimpath -ldflags "-s -w" -o (Join-Path $dist "codex-dataproxy.exe") .
+    & $go build -trimpath -ldflags "-s -w" -o (Join-Path $dist "codex-dp.exe") .
     if ($LASTEXITCODE -ne 0) {
         throw "go build failed with exit code $LASTEXITCODE"
     }
@@ -82,4 +82,4 @@ finally {
     Pop-Location
 }
 
-Write-Host "Built: $dist\codex-dataproxy.exe"
+Write-Host "Built: $dist\codex-dp.exe"

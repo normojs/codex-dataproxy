@@ -183,7 +183,7 @@ models: "deepseek-ai/*,qwen/*"
 
 - 如果 Codex 当前选中的模型在新 provider 的任何 Key 中都不存在，本地代理返回明确错误。
 - 后续可以加 `model_aliases`，把 Codex 传入的模型自动映射到 active provider 的默认模型。
-- 初版不做 Responses 到 Chat Completions 协议转换，仍由中转站支持。
+- Codex DataProxy 不做 Responses 到 Chat Completions 协议转换。Codex 目前只支持 Responses 协议；使用国产模型时，需要模型官方接口直接支持 Responses 协议，或者由中转站支持 Responses 到 Chat Completions 的协议转换。如果模型和中转站都不支持这个转换，请使用 `ccs + codex`；也可以使用 `dp.app.mbu.ltd` 中转站。`dp.app.mbu.ltd` 支持的是 GPT/OpenAI 兼容协议转换，不支持 Claude 协议转换。
 
 ## 本地 HTTP API
 

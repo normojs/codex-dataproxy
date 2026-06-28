@@ -118,11 +118,13 @@ const (
 	defaultLanguageArg   = "--lang=zh-CN"
 	unelevatedRetryArg   = "--codex-dataproxy-unelevated-retry"
 	defaultWireAPI       = "responses"
+	localProxyAPIKey     = "codex-dataproxy-local"
 	authModeCodexAPIKey  = "codex_api_key"
 	authModeProviderEnv  = "provider_env"
 	authFileName         = "auth.json"
 	modelsFileName       = "dataproxy-models.json"
 	appServerTokenName   = "dataproxy-app-server.token"
+	deviceIDFileName     = "dataproxy-device-id"
 	defaultAppServerHost = "127.0.0.1"
 	defaultAppServerPort = 17666
 	emptyModelsLabel     = "获取模型为空"
@@ -371,7 +373,7 @@ func printUnelevatedRetryFailedNotice() {
 		"仍然检测到当前是 Windows 管理员身份。",
 		"",
 		"启动器已经尝试自动切换为普通用户权限，但本机环境没有完成降权。",
-		"请关闭此窗口，不要右键选择“以管理员身份运行”，直接双击 codex-dataproxy.exe 启动。",
+		"请关闭此窗口，不要右键选择“以管理员身份运行”，直接双击 codex-dp.exe 启动。",
 		"",
 		"按 Enter 键退出...",
 		"============================================================",
@@ -566,6 +568,8 @@ func validateRequiredConfig() []string {
 
 	if provider.BaseURL == "" {
 		reasons = append(reasons, "base_url 还没有配置")
+	} else if err := validateAPIBaseURL(provider.BaseURL); err != nil {
+		reasons = append(reasons, err.Error())
 	}
 
 	if provider.APIKey == "" {
@@ -715,7 +719,7 @@ func mustCreateDir(path string) {
 func syncCodexAuth(portableCodexHome string) {
 	authTarget := filepath.Join(portableCodexHome, authFileName)
 	payload := map[string]string{
-		"OPENAI_API_KEY": "codex-dataproxy-local",
+		"OPENAI_API_KEY": localProxyAPIKey,
 	}
 	contents, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -735,6 +739,11 @@ func syncCodexConfig(portableCodexHome string, selectedModel string) {
 
 	configTarget := filepath.Join(portableCodexHome, "config.toml")
 	configContent := renderCodexConfig(selectedModel)
+	if existing, err := os.ReadFile(configTarget); err == nil {
+		configContent = mergeCodexConfig(configContent, string(existing))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		log.Fatal().Err(err).Msg("Cannot read portable config.toml")
+	}
 	if err := os.WriteFile(configTarget, []byte(configContent), 0o644); err != nil {
 		log.Fatal().Err(err).Msg("Cannot write portable config.toml")
 	}
@@ -933,6 +942,9 @@ func modelsEndpoint(baseURL string) (string, error) {
 	if raw == "" {
 		return "", errors.New("base_url is empty")
 	}
+	if err := validateAPIBaseURL(raw); err != nil {
+		return "", err
+	}
 
 	parsed, err := url.Parse(raw)
 	if err != nil {
@@ -945,15 +957,40 @@ func modelsEndpoint(baseURL string) (string, error) {
 	path := strings.TrimRight(parsed.Path, "/")
 	switch {
 	case path == "":
-		parsed.Path = "/v1/models"
-	case strings.HasSuffix(path, "/models"):
-		parsed.Path = path
+		parsed.Path = "/models"
 	default:
 		parsed.Path = path + "/models"
 	}
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return parsed.String(), nil
+}
+
+func validateAPIBaseURL(baseURL string) error {
+	raw := strings.TrimSpace(baseURL)
+	if raw == "" {
+		return errors.New("base_url is empty")
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("base_url is not an absolute URL: %s", raw)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("base_url must use http or https: %s", raw)
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("base_url should not include query parameters or fragments: %s", raw)
+	}
+	path := strings.ToLower(strings.TrimRight(parsed.EscapedPath(), "/"))
+	for _, endpoint := range []string{"/models", "/responses", "/chat/completions", "/completions", "/messages"} {
+		if strings.HasSuffix(path, endpoint) {
+			return fmt.Errorf("base_url should be the upstream API root, not a full endpoint: %s", raw)
+		}
+	}
+	return nil
 }
 
 func modelIDFromRawJSON(raw json.RawMessage) string {
@@ -1163,7 +1200,7 @@ func buildCodexModels(effectiveModels []effectiveModelConfig, defaultID string) 
 	models := make([]codexModel, 0, len(effectiveModels))
 	for _, model := range effectiveModels {
 		displayName := fallback(model.DisplayName, model.ID)
-		description := fallback(model.Description, "DataProxy /v1/models")
+		description := fallback(model.Description, "DataProxy models")
 		defaultEffort := fallback(model.Catalog.DefaultReasoningEffort, "medium")
 		models = append(models, codexModel{
 			ID:                        model.ID,
@@ -1236,6 +1273,188 @@ func renderCodexConfig(selectedModel string) string {
 	fmt.Fprintf(&b, "\n")
 	writePlatformCodexConfig(&b)
 	return b.String()
+}
+
+func mergeCodexConfig(generated string, existing string) string {
+	if strings.TrimSpace(existing) == "" {
+		return generated
+	}
+
+	generatedBlocks := splitConfigTomlBlocks(generated)
+	existingBlocks := splitConfigTomlBlocks(existing)
+	preservedTopLevel := []string{}
+	preservedSections := []configTomlBlock{}
+	for _, block := range existingBlocks {
+		if !block.hasHeader {
+			preservedTopLevel = preserveUnmanagedTopLevelConfig(block.body)
+			continue
+		}
+		if isManagedCodexConfigSection(block.name) || !hasConfigTomlContent(block.body) {
+			continue
+		}
+		preservedSections = append(preservedSections, block)
+	}
+
+	var b strings.Builder
+	for _, block := range generatedBlocks {
+		if !block.hasHeader {
+			for _, line := range block.body {
+				b.WriteString(line)
+			}
+			for _, line := range preservedTopLevel {
+				b.WriteString(line)
+			}
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString(block.header)
+		for _, line := range block.body {
+			b.WriteString(line)
+		}
+	}
+
+	for _, block := range preservedSections {
+		if b.Len() > 0 {
+			b.WriteString("\n\n")
+		}
+		b.WriteString(block.header)
+		for _, line := range block.body {
+			b.WriteString(line)
+		}
+	}
+
+	b.WriteString("\n")
+	return b.String()
+}
+
+func preserveUnmanagedTopLevelConfig(lines []string) []string {
+	preserved := make([]string, 0, len(lines))
+	for _, line := range lines {
+		key, ok := configTomlLineKey(line)
+		if ok && isManagedTopLevelCodexConfigKey(key) {
+			continue
+		}
+		preserved = append(preserved, line)
+	}
+	return preserved
+}
+
+func isManagedTopLevelCodexConfigKey(key string) bool {
+	switch key {
+	case "model",
+		"model_provider",
+		"model_reasoning_effort",
+		"plan_mode_reasoning_effort",
+		"model_reasoning_summary",
+		"model_verbosity",
+		"model_context_window",
+		"model_auto_compact_token_limit":
+		return true
+	default:
+		return false
+	}
+}
+
+func isManagedCodexConfigSection(name string) bool {
+	return name == "model_providers.dataproxy-local" || name == "windows"
+}
+
+type configTomlBlock struct {
+	name      string
+	header    string
+	body      []string
+	hasHeader bool
+}
+
+func splitConfigTomlBlocks(contents string) []configTomlBlock {
+	lines := strings.SplitAfter(contents, "\n")
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	blocks := []configTomlBlock{{}}
+	for _, line := range lines {
+		if name, ok := configTomlSectionName(line); ok {
+			blocks = append(blocks, configTomlBlock{name: name, header: line, hasHeader: true})
+			continue
+		}
+		blocks[len(blocks)-1].body = append(blocks[len(blocks)-1].body, line)
+	}
+	return blocks
+}
+
+func configTomlSectionName(line string) (string, bool) {
+	trimmed := strings.TrimSpace(stripConfigTomlComment(strings.TrimRight(line, "\r\n")))
+	switch {
+	case strings.HasPrefix(trimmed, "[[") && strings.HasSuffix(trimmed, "]]"):
+		name := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "[["), "]]"))
+		return name, name != ""
+	case strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]"):
+		name := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(trimmed, "["), "]"))
+		return name, name != ""
+	default:
+		return "", false
+	}
+}
+
+func configTomlLineKey(line string) (string, bool) {
+	body := strings.TrimSpace(stripConfigTomlComment(strings.TrimRight(line, "\r\n")))
+	key, _, ok := strings.Cut(body, "=")
+	if !ok {
+		return "", false
+	}
+	key = strings.TrimSpace(key)
+	return key, key != ""
+}
+
+func hasConfigTomlContent(lines []string) bool {
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(stripConfigTomlComment(strings.TrimRight(line, "\r\n")))
+		if trimmed != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func stripConfigTomlComment(line string) string {
+	inBasicString := false
+	inLiteralString := false
+	escaped := false
+	for i := 0; i < len(line); i++ {
+		ch := line[i]
+		if inBasicString {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if ch == '\\' {
+				escaped = true
+				continue
+			}
+			if ch == '"' {
+				inBasicString = false
+			}
+			continue
+		}
+		if inLiteralString {
+			if ch == '\'' {
+				inLiteralString = false
+			}
+			continue
+		}
+		switch ch {
+		case '"':
+			inBasicString = true
+		case '\'':
+			inLiteralString = true
+		case '#':
+			return line[:i]
+		}
+	}
+	return line
 }
 
 func writeCodexNativeConfig(b *strings.Builder, config codexNativeConfig) {

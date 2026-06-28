@@ -45,7 +45,7 @@ http://127.0.0.1:<port>/settings
 Windows：
 
 ```text
-codex-dataproxy.exe
+codex-dp.exe
 app/Codex.exe
 data/
 config/
