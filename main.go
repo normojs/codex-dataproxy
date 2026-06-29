@@ -283,6 +283,7 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot load provider config")
 	}
+	seedCachedDynamicModels(runtimeStore, portableCodexHome)
 	runtimeHTTPServer, err = startLocalHTTPServer(runtimeStore, portableCodexHome, runtimeAppServer)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Cannot start local settings server")
@@ -296,18 +297,10 @@ func main() {
 		waitForProviderSetup(runtimeHTTPServer.settingsURL())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	if err := runtimeStore.refreshActiveModels(ctx); err != nil {
-		log.Warn().Err(err).Msg("Cannot refresh active provider models")
-	}
-	cancel()
-	if err := runtimeStore.ensureActiveDefaultModel(); err != nil {
-		log.Warn().Err(err).Msg("Cannot persist active default model")
-	}
-
 	syncCodexAuth(portableCodexHome)
 	modelList := syncDynamicModelList(portableCodexHome)
 	syncCodexConfig(portableCodexHome, modelList.DefaultModel)
+	startBackgroundModelRefresh(portableCodexHome)
 
 	app.Process = platformCodexProcessPath(app.AppPath, cfg.Executable)
 	app.WorkingDir = app.AppPath
@@ -847,12 +840,64 @@ type modelListResult struct {
 	Models       []string
 }
 
+func seedCachedDynamicModels(store *providerStore, portableCodexHome string) {
+	if store == nil {
+		return
+	}
+	models, defaultModel, err := readCachedDynamicModels(portableCodexHome)
+	if err != nil {
+		log.Warn().Err(err).Msg("Cannot read cached dynamic model list")
+		return
+	}
+	if store.seedCachedModels(models, defaultModel) {
+		printConsoleLine(fmt.Sprintf("Using cached model list: %d models.", len(models)))
+	}
+}
+
+func readCachedDynamicModels(portableCodexHome string) ([]string, string, error) {
+	target := filepath.Join(portableCodexHome, modelsFileName)
+	raw, err := os.ReadFile(target)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, "", nil
+	}
+	if err != nil {
+		return nil, "", err
+	}
+
+	var payload codexModelsResponse
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil, "", err
+	}
+
+	seen := map[string]bool{}
+	models := []string{}
+	defaultModel := ""
+	for _, item := range payload.Data {
+		id := strings.TrimSpace(item.ID)
+		if id == "" || id == emptyModelsLabel || seen[id] {
+			continue
+		}
+		seen[id] = true
+		models = append(models, id)
+		if item.IsDefault && defaultModel == "" {
+			defaultModel = id
+		}
+	}
+	return models, defaultModel, nil
+}
+
 func syncDynamicModelList(portableCodexHome string) modelListResult {
 	modelIDs := []string{}
 	defaultModelID := ""
 	if runtimeStore != nil {
 		modelIDs = runtimeStore.modelIDs()
 		defaultModelID = runtimeStore.defaultModel()
+	}
+	if len(modelIDs) == 0 {
+		modelIDs = configuredStartupModelIDs()
+		if defaultModelID == "" {
+			defaultModelID = strings.TrimSpace(cfg.SelectedModel)
+		}
 	}
 	if defaultModelID != "" {
 		cfg.SelectedModel = defaultModelID
@@ -884,6 +929,55 @@ func syncDynamicModelList(portableCodexHome string) modelListResult {
 
 	printConsoleLine(fmt.Sprintf("已准备模型列表：%d 个模型。", len(payload.Data)))
 	return modelListResult{DefaultModel: defaultModel, Models: models}
+}
+
+func configuredStartupModelIDs() []string {
+	models := configuredModelsForActiveProvider()
+	ids := make([]string, 0, len(models)+1)
+	seen := map[string]bool{}
+	add := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			return
+		}
+		seen[id] = true
+		ids = append(ids, id)
+	}
+	add(cfg.SelectedModel)
+	for _, model := range models {
+		add(model.ID)
+	}
+	return ids
+}
+
+func startBackgroundModelRefresh(portableCodexHome string) {
+	if runtimeStore == nil {
+		return
+	}
+	startupModels := runtimeStore.modelIDs()
+	startupDefault := runtimeStore.defaultModel()
+	printConsoleLine("Refreshing model list in the background; Codex Desktop will open without waiting.")
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		err := runtimeStore.refreshActiveModels(ctx)
+		cancel()
+		if err != nil {
+			log.Warn().Err(err).Msg("Cannot refresh active provider models")
+		}
+		if len(runtimeStore.modelIDs()) == 0 {
+			if len(startupModels) > 0 {
+				runtimeStore.seedCachedModels(startupModels, startupDefault)
+			} else {
+				runtimeStore.seedCachedModels(configuredStartupModelIDs(), strings.TrimSpace(cfg.SelectedModel))
+			}
+		}
+		if err := runtimeStore.ensureActiveDefaultModel(); err != nil {
+			log.Warn().Err(err).Msg("Cannot persist active default model")
+		}
+		modelList := syncDynamicModelList(portableCodexHome)
+		syncCodexConfig(portableCodexHome, modelList.DefaultModel)
+		printConsoleLine("Background model refresh finished.")
+	}()
 }
 
 func fetchProviderModelIDs() ([]string, error) {

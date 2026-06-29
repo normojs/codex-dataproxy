@@ -988,6 +988,93 @@ func TestProviderStoreEnsuresActiveDefaultModel(t *testing.T) {
 	}
 }
 
+func TestSyncDynamicModelListFallsBackToConfiguredModelWithoutRefresh(t *testing.T) {
+	withDefaultTestConfig(t)
+	oldRuntimeStore := runtimeStore
+	runtimeStore = &providerStore{
+		providers: []upstreamProviderConfig{
+			{
+				ID:      "dataproxy",
+				Name:    "DataProxy",
+				Active:  true,
+				Enabled: true,
+				BaseURL: "https://dp.app.mbu.ltd/v1",
+				Keys: []upstreamKeyConfig{
+					{ID: "main", APIKey: "sk-test", Enabled: true, Sort: 10},
+				},
+			},
+		},
+	}
+	t.Cleanup(func() { runtimeStore = oldRuntimeStore })
+
+	dir := t.TempDir()
+	result := syncDynamicModelList(dir)
+	if result.DefaultModel != defaultModel {
+		t.Fatalf("DefaultModel = %q, want %q", result.DefaultModel, defaultModel)
+	}
+	if !reflect.DeepEqual(result.Models, []string{defaultModel}) {
+		t.Fatalf("Models = %#v, want default model", result.Models)
+	}
+
+	raw, err := os.ReadFile(filepath.Join(dir, modelsFileName))
+	if err != nil {
+		t.Fatalf("dynamic model list was not written: %v", err)
+	}
+	var payload codexModelsResponse
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		t.Fatalf("dynamic model list is not JSON: %v", err)
+	}
+	if len(payload.Data) != 1 || payload.Data[0].ID != defaultModel || !payload.Data[0].IsDefault {
+		t.Fatalf("dynamic model payload = %#v, want configured default model", payload.Data)
+	}
+}
+
+func TestSeedCachedDynamicModelsUsesPreviousModelList(t *testing.T) {
+	withDefaultTestConfig(t)
+
+	dir := t.TempDir()
+	cached := codexModelsResponse{Data: []codexModel{
+		{ID: "cached-one"},
+		{ID: "cached-two", IsDefault: true},
+		{ID: "cached-one"},
+		{ID: emptyModelsLabel},
+	}}
+	raw, err := json.Marshal(cached)
+	if err != nil {
+		t.Fatalf("cannot encode cached models: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, modelsFileName), raw, 0o644); err != nil {
+		t.Fatalf("cannot write cached models: %v", err)
+	}
+
+	store := &providerStore{
+		providers: []upstreamProviderConfig{
+			{
+				ID:      "dataproxy",
+				Name:    "DataProxy",
+				Active:  true,
+				Enabled: true,
+				BaseURL: "https://dp.app.mbu.ltd/v1",
+				Keys: []upstreamKeyConfig{
+					{ID: "main", APIKey: "sk-test", Enabled: true, Sort: 10},
+				},
+			},
+		},
+	}
+
+	seedCachedDynamicModels(store, dir)
+	if got := store.modelIDs(); !reflect.DeepEqual(got, []string{"cached-one", "cached-two"}) {
+		t.Fatalf("modelIDs() = %#v, want cached model list", got)
+	}
+	provider, ok := store.activeProvider()
+	if !ok {
+		t.Fatalf("active provider missing")
+	}
+	if provider.DefaultModel != "cached-two" {
+		t.Fatalf("DefaultModel = %q, want cached-two", provider.DefaultModel)
+	}
+}
+
 func TestMergeEffectiveModelsKeepsConfiguredModelsFirst(t *testing.T) {
 	withDefaultTestConfig(t)
 

@@ -30,7 +30,7 @@ China fast download: https://www.modelscope.cn/models/sunlab-uninstall/uninstall
 Use the versioned archive from GitHub Releases:
 
 ```text
-codex-dataproxy-v0.2.1-windows.zip
+codex-dataproxy-v0.2.2-windows.zip
 ```
 
 For users in China, use the faster mirror:
@@ -147,7 +147,7 @@ Outputs:
 
 ```text
 dist\codex-dp.exe
-dist\codex-dataproxy-v0.2.1-windows.zip
+dist\codex-dataproxy-v0.2.2-windows.zip
 dist\codex-dataproxy.zip
 ```
 
@@ -166,6 +166,6 @@ Codex Desktop app, rebuilds `codex-dp.exe`, packages the zip, uploads the
 artifact, and publishes a GitHub Release.
 
 ```powershell
-git tag v0.2.1
-git push origin v0.2.1
+git tag v0.2.2
+git push origin v0.2.2
 ```

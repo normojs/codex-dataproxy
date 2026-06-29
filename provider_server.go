@@ -841,6 +841,44 @@ func (s *providerStore) modelIDs() []string {
 	return append([]string{}, s.models...)
 }
 
+func (s *providerStore) seedCachedModels(models []string, defaultModel string) bool {
+	if s == nil {
+		return false
+	}
+	seen := map[string]bool{}
+	cached := make([]string, 0, len(models))
+	for _, model := range models {
+		model = strings.TrimSpace(model)
+		if model == "" || seen[model] {
+			continue
+		}
+		seen[model] = true
+		cached = append(cached, model)
+	}
+	if len(cached) == 0 {
+		return false
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(s.models) > 0 {
+		return false
+	}
+	s.models = cached
+
+	defaultModel = strings.TrimSpace(defaultModel)
+	if defaultModel == "" || !seen[defaultModel] {
+		return true
+	}
+	for i := range s.providers {
+		if s.providers[i].Active && s.providers[i].Enabled && strings.TrimSpace(s.providers[i].DefaultModel) == "" {
+			s.providers[i].DefaultModel = defaultModel
+			break
+		}
+	}
+	return true
+}
+
 func (s *providerStore) rebuildRoutesLocked() {
 	routes := map[string]modelRoute{}
 	duplicates := map[string][]modelRoute{}
@@ -1641,7 +1679,7 @@ func (s *localHTTPServer) handleDataProxyDeviceStart(w http.ResponseWriter, r *h
 		"device_id":   deviceID,
 		"device_name": deviceName,
 		"platform":    runtime.GOOS,
-		"app_version": "0.2.1",
+		"app_version": "0.2.2",
 		"client":      "codex-dp",
 		"locale":      fallback(strings.TrimSpace(payload.Locale), "zh-CN"),
 	}
@@ -1700,7 +1738,7 @@ func (s *localHTTPServer) handleDataProxyDevicePoll(w http.ResponseWriter, r *ht
 		"device_id":   deviceID,
 		"device_name": deviceName,
 		"platform":    runtime.GOOS,
-		"app_version": "0.2.1",
+		"app_version": "0.2.2",
 		"group":       strings.TrimSpace(payload.Group),
 		"rotate":      false,
 	}

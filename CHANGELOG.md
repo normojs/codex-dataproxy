@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.2 - 2026-06-29
+
+- Improved launcher startup performance by moving model refresh to the background and reusing cached or configured models during launch.
+
 ## v0.2.1 - 2026-06-29
 
 - Added DataProxy browser device authorization and automatic dedicated-key storage.

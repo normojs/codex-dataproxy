@@ -95,7 +95,7 @@ Content-Type: application/json
   "device_id": "uuid-v4-generated-by-client",
   "device_name": "Windows PC",
   "platform": "windows",
-  "app_version": "0.2.1",
+  "app_version": "0.2.2",
   "client": "codex-dp",
   "locale": "zh-CN"
 }
@@ -278,7 +278,7 @@ Content-Type: application/json
   "device_id": "uuid-v4-generated-by-client",
   "device_name": "Windows PC",
   "platform": "windows",
-  "app_version": "0.2.1",
+  "app_version": "0.2.2",
   "group": "fast",
   "rotate": false
 }
