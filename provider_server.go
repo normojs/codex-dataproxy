@@ -1679,7 +1679,7 @@ func (s *localHTTPServer) handleDataProxyDeviceStart(w http.ResponseWriter, r *h
 		"device_id":   deviceID,
 		"device_name": deviceName,
 		"platform":    runtime.GOOS,
-		"app_version": "0.2.2",
+		"app_version": "0.2.3",
 		"client":      "codex-dp",
 		"locale":      fallback(strings.TrimSpace(payload.Locale), "zh-CN"),
 	}
@@ -1738,7 +1738,7 @@ func (s *localHTTPServer) handleDataProxyDevicePoll(w http.ResponseWriter, r *ht
 		"device_id":   deviceID,
 		"device_name": deviceName,
 		"platform":    runtime.GOOS,
-		"app_version": "0.2.2",
+		"app_version": "0.2.3",
 		"group":       strings.TrimSpace(payload.Group),
 		"rotate":      false,
 	}

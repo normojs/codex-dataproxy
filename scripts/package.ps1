@@ -2,14 +2,18 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root "dist"
-$stage = Join-Path $dist "codex-dataproxy"
+$stage = Join-Path $dist "codex-dp"
+$legacyStage = Join-Path $dist "codex-dataproxy"
 $portapp = Get-Content (Join-Path $root "portapp.json") -Raw | ConvertFrom-Json
 $version = $portapp.version
-$zip = Join-Path $dist ("codex-dataproxy-v{0}-windows.zip" -f $version)
-$latestZip = Join-Path $dist "codex-dataproxy.zip"
+$zip = Join-Path $dist ("codex-dp-v{0}-windows.zip" -f $version)
+$latestZip = Join-Path $dist "codex-dp.zip"
 
 if (Test-Path $stage) {
     Remove-Item $stage -Recurse -Force
+}
+if (Test-Path $legacyStage) {
+    Remove-Item $legacyStage -Recurse -Force
 }
 New-Item -ItemType Directory -Force $stage | Out-Null
 
@@ -45,6 +49,12 @@ if (Test-Path $zip) {
 if (Test-Path $latestZip) {
     Remove-Item $latestZip -Force
 }
+$legacyLatestZip = Join-Path $dist "codex-dataproxy.zip"
+if (Test-Path $legacyLatestZip) {
+    Remove-Item $legacyLatestZip -Force
+}
+Get-ChildItem -Path $dist -Filter "codex-dataproxy-v*-windows.zip" -File -ErrorAction SilentlyContinue |
+    Remove-Item -Force
 
 $tarCommand = Get-Command tar.exe -ErrorAction SilentlyContinue
 if (!$tarCommand) {

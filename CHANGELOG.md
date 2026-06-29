@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.2.3 - 2026-06-29
+
+- Renamed generated Windows zip packages to `codex-dp-v0.2.3-windows.zip` and `codex-dp.zip`.
+
 ## v0.2.2 - 2026-06-29
 
 - Improved launcher startup performance by moving model refresh to the background and reusing cached or configured models during launch.
@@ -27,7 +31,7 @@
 - Persisted the first merged model as `default_model` when no default model is configured.
 - Added local Codex app-server startup with loopback WebSocket and token-file authentication.
 - Added app-server status to the settings page.
-- Added versioned Windows zip packaging: `codex-dataproxy-v0.2.0-windows.zip`.
+- Added versioned Windows zip packaging.
 - Added English `README.md` and Chinese `README-zh.md`.
 - Added China fast download link for ModelScope.
 

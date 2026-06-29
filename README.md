@@ -30,7 +30,7 @@ China fast download: https://www.modelscope.cn/models/sunlab-uninstall/uninstall
 Use the versioned archive from GitHub Releases:
 
 ```text
-codex-dataproxy-v0.2.2-windows.zip
+codex-dp-v0.2.3-windows.zip
 ```
 
 For users in China, use the faster mirror:
@@ -147,8 +147,8 @@ Outputs:
 
 ```text
 dist\codex-dp.exe
-dist\codex-dataproxy-v0.2.2-windows.zip
-dist\codex-dataproxy.zip
+dist\codex-dp-v0.2.3-windows.zip
+dist\codex-dp.zip
 ```
 
 ## GitHub Release CI
@@ -157,7 +157,7 @@ The repository does not commit the bundled `app/` directory. To let GitHub Actio
 build a full Windows package, configure one repository variable or secret:
 
 ```text
-CODEX_DATAPROXY_BASE_ZIP_URL=https://.../codex-dataproxy-v0.2.1-windows.zip
+CODEX_DATAPROXY_BASE_ZIP_URL=https://.../codex-dp-v<previous-version>-windows.zip
 ```
 
 The URL must point to a previous full package zip that contains `app/Codex.exe`.
@@ -166,6 +166,6 @@ Codex Desktop app, rebuilds `codex-dp.exe`, packages the zip, uploads the
 artifact, and publishes a GitHub Release.
 
 ```powershell
-git tag v0.2.2
-git push origin v0.2.2
+git tag v0.2.3
+git push origin v0.2.3
 ```

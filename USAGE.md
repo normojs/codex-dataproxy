@@ -6,7 +6,7 @@
 
 ## 1. 解压文件
 
-将 `codex-dataproxy.zip` 解压到短路径，例如：
+将 `codex-dp.zip` 解压到短路径，例如：
 
 ```text
 C:\CodexDP

@@ -103,8 +103,8 @@ jobs:
             throw "Set repository variable or secret CODEX_DATAPROXY_BASE_ZIP_URL to a previous full Windows package zip URL."
           }
 
-          $baseZip = Join-Path $env:RUNNER_TEMP "codex-dataproxy-base.zip"
-          $baseExtract = Join-Path $env:RUNNER_TEMP "codex-dataproxy-base"
+          $baseZip = Join-Path $env:RUNNER_TEMP "codex-dp-base.zip"
+          $baseExtract = Join-Path $env:RUNNER_TEMP "codex-dp-base"
           Invoke-WebRequest -Uri $env:BASE_ZIP_URL -OutFile $baseZip
           if (Test-Path $baseExtract) {
             Remove-Item $baseExtract -Recurse -Force
@@ -139,9 +139,15 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content portapp.json -Raw | ConvertFrom-Json).version
-          $zip = "dist\codex-dataproxy-v$version-windows.zip"
+          $zip = "dist\codex-dp-v$version-windows.zip"
           if (!(Test-Path $zip)) {
             throw "Missing package: $zip"
+          }
+          if (Test-Path "dist\codex-dataproxy-v*-windows.zip" -PathType Leaf) {
+            throw "Package output still contains old codex-dataproxy-v*-windows.zip name"
+          }
+          if (Test-Path "dist\codex-dataproxy.zip") {
+            throw "Package output still contains old codex-dataproxy.zip name"
           }
           $entries = tar.exe -tf $zip
           foreach ($required in @("codex-dp.exe", "app/Codex.exe", "app/resources/app.asar", "VERSION.txt")) {
@@ -156,11 +162,11 @@ jobs:
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
-          name: codex-dataproxy-windows
+          name: codex-dp-windows
           path: |
             dist/codex-dp.exe
-            dist/codex-dataproxy-v*-windows.zip
-            dist/codex-dataproxy.zip
+            dist/codex-dp-v*-windows.zip
+            dist/codex-dp.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
@@ -173,8 +179,8 @@ jobs:
             throw "Tag $tag does not match portapp.json version v$version"
           }
           gh release create $tag `
-            "dist/codex-dataproxy-v$version-windows.zip" `
-            "dist/codex-dataproxy.zip" `
+            "dist/codex-dp-v$version-windows.zip" `
+            "dist/codex-dp.zip" `
             --title "Codex DataProxy $tag" `
             --generate-notes `
             --latest
